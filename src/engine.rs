@@ -1517,10 +1517,9 @@ mod tests {
         assert_eq!(engine.num_live_decoders(), 0);
     }
 
-    /// HuggingFace tokenizer 走缓冲式增量解码：生成过程中无中间片段，
-    /// 终态时 finish 冲刷出完整文本，拼接性质仍成立。
+    /// HuggingFace 流式解码产生的中间片段与请求完成时的最终文本必须严格等价。
     #[test]
-    fn test_streaming_equivalence_with_buffered_hf_decoder() {
+    fn test_streaming_equivalence_with_huggingface_decoder() {
         let path = write_test_tokenizer_json();
         let config = EngineConfig {
             max_model_len: 64,

@@ -15,6 +15,7 @@
 #   --modes <list>          "closed poisson"（默认 closed）
 #   --concurrencies <list>  闭环并发档（默认 "1 2 4 8"）
 #   --rates <list>          泊松到达率档 req/s（默认 "0.5 1.0 2.0"）
+#   --poisson-seed <n>      泊松到达基准种子（默认 20260904；repeat 递增）
 #   --datasets <list>       数据集名（默认 "work"；可选 short/work/long/smoke）
 #   --requests <n>          每组合测量请求数（默认 64）
 #   --warmup-secs <n>       预热秒数（默认 30）
@@ -35,7 +36,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # ---------- 参数 ----------
-BASE_URL="" ENGINE="" MODES="closed" CONCS="1 2 4 8" RATES="0.5 1.0 2.0"
+BASE_URL="" ENGINE="" MODES="closed" CONCS="1 2 4 8" RATES="0.5 1.0 2.0" POISSON_SEED=20260904
 DATASETS="work" REQUESTS=64 WARMUP=30 MAX_TOKENS=128 REPEATS=3
 API_MODEL="paged-serving" TOKENIZER="" MODEL_PATH="" MODEL_SHA256="" BACKEND_QUANT="unspecified"
 ENGINE_DIR="../.." CUDA_ARCHS="unspecified" RESULTS_DIR=""
@@ -48,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     --modes) MODES="$2"; shift 2;;
     --concurrencies) CONCS="$2"; shift 2;;
     --rates) RATES="$2"; shift 2;;
+    --poisson-seed) POISSON_SEED="$2"; shift 2;;
     --datasets) DATASETS="$2"; shift 2;;
     --requests) REQUESTS="$2"; shift 2;;
     --warmup-secs) WARMUP="$2"; shift 2;;
@@ -71,6 +73,7 @@ done
 [[ "$REPEATS" =~ ^[1-9][0-9]*$ ]] || { echo "--repeats 必须是正整数"; exit 2; }
 [[ "$MAX_TOKENS" =~ ^[1-9][0-9]*$ ]] || { echo "--max-tokens 必须是正整数"; exit 2; }
 [[ "$WARMUP" =~ ^[0-9]+$ ]] || { echo "--warmup-secs 必须是非负整数"; exit 2; }
+[[ "$POISSON_SEED" =~ ^[0-9]+$ ]] || { echo "--poisson-seed 必须是非负整数"; exit 2; }
 for mode in $MODES; do
   [[ "$mode" == "closed" || "$mode" == "poisson" ]] || {
     echo "--modes 只支持 closed / poisson"; exit 2;
@@ -176,19 +179,25 @@ run_one() { # $1=mode $2=param(并发或速率) $3=dataset $4=repeat
   else
     mode_args=(--mode poisson --rate "$param")
   fi
+  local arrival_seed=""
+  local -a seed_args=()
+  if [[ "$mode" == "poisson" ]]; then
+    arrival_seed=$((POISSON_SEED + rep - 1))
+    seed_args=(--seed "$arrival_seed")
+  fi
   local -a tokenizer_args=()
   if [[ -n "$TOKENIZER" ]]; then tokenizer_args=(--tokenizer "$TOKENIZER"); fi
 
   python3 - "$dir/run_metadata.json" "$ENGINE" "$ENGINE_COMMIT" "$ENGINE_DIRTY" "$API_MODEL" \
     "$MODEL_PATH" "$MODEL_SHA256" "$BACKEND_QUANT" "$TOKENIZER" "$mode" "$param" "$ds" \
-    "$rep" "$REQUESTS" "$WARMUP" "$MAX_TOKENS" <<'PY'
+    "$rep" "$REQUESTS" "$WARMUP" "$MAX_TOKENS" "$arrival_seed" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 (
     path, engine, commit, engine_dirty, api_model, model_path, model_sha256, quant, tokenizer, mode,
-    parameter, dataset, repeat, requests, warmup, max_tokens,
+    parameter, dataset, repeat, requests, warmup, max_tokens, arrival_seed,
 ) = sys.argv[1:]
 metadata = {
     "schema_version": 1,
@@ -208,6 +217,7 @@ metadata = {
         "mode": mode,
         "concurrency": int(float(parameter)) if mode == "closed" else None,
         "rate": float(parameter) if mode == "poisson" else None,
+        "arrival_seed": int(arrival_seed) if arrival_seed else None,
         "dataset": dataset,
         "repeat": int(repeat),
         "requests": int(requests),
@@ -222,7 +232,7 @@ PY
     --dataset "$dsfile" --requests "$REQUESTS" --warmup-secs "$WARMUP" \
     --max-tokens "$MAX_TOKENS" --engine "$ENGINE" --model "$API_MODEL" \
     --out "$dir/per_request.jsonl" --summary-out "$dir/summary.json" \
-    "${tokenizer_args[@]}" | tee "$dir/stdout.log"
+    "${tokenizer_args[@]}" "${seed_args[@]}" | tee "$dir/stdout.log"
 }
 
 for ds in $DATASETS; do

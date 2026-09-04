@@ -36,6 +36,12 @@ EOS 等特殊 token，必须在报表中标注。未提供 tokenizer 时 token �
    λ 取 0.5×/1.0×/2.0× 饱和容量，画 **TTFT p95 vs λ 的 SLO 曲线**——
    这是 serving 岗位最常问的负载形态。
 
+每个 Poisson run 都必须记录实际 `arrival_seed`：直接调用 `loadgen` 时，省略
+`--seed` 会生成随机种子并写入 `summary.json`；`run_sweep.sh` 默认以
+`20260904 + repeat - 1` 生成可复现种子，同时写入 `summary.json` 和
+`run_metadata.json`。种子固定的是计划到达间隔；GPU 时钟、操作系统调度和网络抖动仍会使
+实际完成时刻存在波动，不能把它误说成完全确定性实验。
+
 闭环与开环回答不同问题：闭环给"上限"，开环给"给定到达率下的延迟代价"。
 只报闭环是 serving 评测的常见缺陷，本体系两者强制并列。
 
@@ -55,7 +61,8 @@ EOS 等特殊 token，必须在报表中标注。未提供 tokenizer 时 token �
 
 1. **三件套绑定**：实验根 `metadata.json` 记录 paged-serving/tiny-llm commit、
    `nvidia-smi` 快照、驱动/CUDA 与构建口径；每次 run 的
-   `run_metadata.json` 记录被测引擎 commit、模型路径、量化格式和完整负载参数。
+   `run_metadata.json` 记录被测引擎 commit、模型路径、量化格式、完整负载参数和
+   （Poisson 模式的）`arrival_seed`。
    `run_sweep.sh` 默认拒绝 dirty worktree（`--allow-dirty` 显式放行并在根
    metadata 记录 `dirty: true`）。
 2. **预热**：`--warmup-secs ≥ 30`（warmup 流量与测量窗口同负载形态，结果丢弃）。

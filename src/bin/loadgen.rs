@@ -38,7 +38,9 @@
 
 use clap::Parser;
 use futures_util::StreamExt;
+use rand::rngs::StdRng;
 use rand::Rng;
+use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -65,6 +67,10 @@ struct Args {
     /// 平均到达率 req/s（poisson 模式）
     #[arg(long, default_value_t = 1.0)]
     rate: f64,
+
+    /// Poisson 到达间隔的随机种子；省略时生成随机种子并写入 summary.json
+    #[arg(long)]
+    seed: Option<u64>,
 
     /// 数据集文件（jsonl，每行 {"prompt": "...", "prompt_tokens": 可选}）
     #[arg(long)]
@@ -178,6 +184,8 @@ struct RunConfigSummary {
     requests: usize,
     concurrency: Option<usize>,
     rate: Option<f64>,
+    /// 实际用于 Poisson 指数间隔的随机种子；closed 模式为 null。
+    arrival_seed: Option<u64>,
     max_tokens: u32,
     warmup_secs: u64,
     timeout_secs: u64,
@@ -494,6 +502,10 @@ fn metric_summary(mut values: Vec<f64>) -> MetricSummary {
     }
 }
 
+fn poisson_interval_secs(rng: &mut impl Rng, rate: f64) -> f64 {
+    -(1.0 - rng.gen::<f64>()).ln() / rate
+}
+
 fn build_summary(records: &[RequestRecord], wall_secs: f64, args: &Args) -> RunSummary {
     let total = records.len();
     let ok_records: Vec<&RequestRecord> = records.iter().filter(|r| r.ok).collect();
@@ -562,6 +574,7 @@ fn build_summary(records: &[RequestRecord], wall_secs: f64, args: &Args) -> RunS
             requests: args.requests,
             concurrency: (args.mode == "closed").then_some(args.concurrency),
             rate: (args.mode == "poisson").then_some(args.rate),
+            arrival_seed: (args.mode == "poisson").then_some(args.seed).flatten(),
             max_tokens: args.max_tokens,
             warmup_secs: args.warmup_secs,
             timeout_secs: args.timeout_secs,
@@ -680,7 +693,7 @@ fn write_summary(path: &Path, summary: &RunSummary) -> Result<(), Box<dyn std::e
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+    let mut args = Args::parse();
     env_logger::init();
 
     if args.mode != "closed" && args.mode != "poisson" {
@@ -707,6 +720,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("--timeout-secs 必须 >= 1");
         std::process::exit(2);
     }
+    if args.mode == "poisson" && args.seed.is_none() {
+        args.seed = Some(rand::random());
+    }
 
     let dataset = load_dataset(&args.dataset)?;
     let output_tokenizer = match &args.tokenizer {
@@ -727,6 +743,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.requests,
         args.warmup_secs
     );
+    if let Some(seed) = (args.mode == "poisson").then_some(args.seed).flatten() {
+        println!("Poisson arrival seed: {seed}");
+    }
 
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(5))
@@ -826,7 +845,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         measure_start.elapsed().as_secs_f64()
     } else {
         // poisson 模式：指数间隔到达；warmup 期间同样到达但丢弃。
-        let mut rng = rand::thread_rng();
+        let seed = args.seed.expect("poisson mode always has an arrival seed");
+        let mut rng = StdRng::seed_from_u64(seed);
         let mut warmup_handles: Vec<tokio::task::JoinHandle<RequestRecord>> = Vec::new();
         let mut handles: Vec<tokio::task::JoinHandle<()>> = Vec::new();
         let mut issued = 0usize;
@@ -835,7 +855,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.warmup_secs > 0 {
             let warmup_until = Instant::now() + Duration::from_secs(args.warmup_secs);
             while Instant::now() < warmup_until {
-                let dt = -(1.0 - rng.gen::<f64>()).ln() / args.rate;
+                let dt = poisson_interval_secs(&mut rng, args.rate);
                 tokio::time::sleep(Duration::from_secs_f64(dt)).await;
                 let (id, entry) = pick(&next_id, &dataset);
                 let (client, args, output_tokenizer) =
@@ -860,7 +880,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let measure_start = Instant::now();
 
         while issued < args.requests {
-            let dt = -(1.0 - rng.gen::<f64>()).ln() / args.rate;
+            let dt = poisson_interval_secs(&mut rng, args.rate);
             tokio::time::sleep(Duration::from_secs_f64(dt)).await;
             let (id, entry) = pick(&next_id, &dataset);
             let idx = issued;
@@ -937,6 +957,7 @@ mod tests {
             mode: "closed".to_string(),
             concurrency: 2,
             rate: 1.0,
+            seed: None,
             dataset: "smoke.jsonl".to_string(),
             requests: 2,
             warmup_secs: 0,
@@ -1023,5 +1044,20 @@ mod tests {
             default_summary_path("per_request.jsonl"),
             PathBuf::from("summary.json")
         );
+    }
+
+    #[test]
+    fn seeded_poisson_intervals_are_reproducible() {
+        let mut first = StdRng::seed_from_u64(42);
+        let mut second = StdRng::seed_from_u64(42);
+        let first_intervals: Vec<f64> = (0..4)
+            .map(|_| poisson_interval_secs(&mut first, 0.64))
+            .collect();
+        let second_intervals: Vec<f64> = (0..4)
+            .map(|_| poisson_interval_secs(&mut second, 0.64))
+            .collect();
+
+        assert_eq!(first_intervals, second_intervals);
+        assert!(first_intervals.iter().all(|interval| *interval > 0.0));
     }
 }

@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 服务端不再因仅启用 `tiny-llm` 编译 feature 就被误认为正在使用真实 CUDA
   后端：新增显式 `--backend tiny-llm --model-path <model.gguf>` 运行时选择，并在
   feature、后端与模型参数不匹配时直接报错，避免性能实验静默落到 CPU reference。
+- HuggingFace tokenizer 不再把所有生成 token 缓冲到请求结束才发送：升级到
+  tokenizers 0.21，并使用其安全逐步流式 decode 状态机处理 BPE/WordPiece/
+  byte-fallback 边界；中间片段与最终一次性 decode 保持严格等价。
 
 ### Changed
 - README 与 serving benchmark 操作手册同步真实后端启动命令；`build.rs` 不再监听
   仅供测试使用、不会改变链接产物的 `TINY_LLM_MODEL` 环境变量。
+- 归档首份真实 CUDA serving 结果（21 个 run、原始请求、模型 SHA-256、硬件与
+  双仓 commit），如实记录吞吐平台、429 和 Poisson 未收敛，而不做跨硬件外推。
 
 ## [0.2.1] - 2026-08-28
 

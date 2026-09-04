@@ -30,7 +30,7 @@ use crate::error::{ConfigError, EngineError};
 use crate::types::TokenId;
 use std::collections::{hash_map::Entry, HashMap};
 use std::path::Path;
-use tokenizers::Tokenizer;
+use tokenizers::{step_decode_stream, Tokenizer};
 
 /// 分词器 trait 接口
 ///
@@ -362,36 +362,64 @@ impl TokenizerTrait for HuggingFaceTokenizer {
     }
 
     fn create_decoder(&self) -> Box<dyn IncrementalDecoder> {
-        // 当前依赖的 tokenizers 版本不提供安全的逐 token streaming decode
-        // （BPE/WordPiece 可能跨 token 修改尾部字节）。先缓冲 token、仅在
-        // finish 时输出完整解码结果，不伪造增量语义。
-        Box::new(BufferedDecoder {
+        Box::new(HuggingFaceStreamDecoder {
             inner: self.inner.clone(),
-            tokens: Vec::new(),
+            stream_ids: Vec::new(),
+            stream_prefix: String::new(),
+            stream_prefix_index: 0,
+            all_tokens: Vec::new(),
+            emitted: String::new(),
         })
     }
 }
 
-/// HuggingFace tokenizer 的增量解码器：缓冲全部 token，finish 时一次性解码。
-struct BufferedDecoder {
+/// HuggingFace tokenizer 的安全增量解码器。
+///
+/// `tokenizers::step_decode_stream` 维护 BPE/WordPiece/byte-fallback 所需的前缀状态，
+/// 只在文本可安全追加时输出；`all_tokens` 仅用于 finish 时核验拼接契约并冲刷尾部。
+struct HuggingFaceStreamDecoder {
     inner: Tokenizer,
-    tokens: Vec<TokenId>,
+    stream_ids: Vec<TokenId>,
+    stream_prefix: String,
+    stream_prefix_index: usize,
+    all_tokens: Vec<TokenId>,
+    emitted: String,
 }
 
-impl IncrementalDecoder for BufferedDecoder {
+impl IncrementalDecoder for HuggingFaceStreamDecoder {
     fn push(&mut self, token: TokenId) -> Result<Option<String>, String> {
-        self.tokens.push(token);
-        Ok(None)
+        self.all_tokens.push(token);
+        let chunk = step_decode_stream(
+            &self.inner,
+            token,
+            true,
+            &mut self.stream_ids,
+            &mut self.stream_prefix,
+            &mut self.stream_prefix_index,
+        )
+        .map_err(|error| error.to_string())?;
+        if let Some(text) = &chunk {
+            self.emitted.push_str(text);
+        }
+        Ok(chunk)
     }
 
     fn finish(&mut self) -> Result<Option<String>, String> {
-        if self.tokens.is_empty() {
+        if self.all_tokens.is_empty() {
             return Ok(None);
         }
-        self.inner
-            .decode(&self.tokens, true)
-            .map(Some)
-            .map_err(|e| e.to_string())
+        let decoded = self
+            .inner
+            .decode(&self.all_tokens, true)
+            .map_err(|error| error.to_string())?;
+        let tail = decoded.strip_prefix(&self.emitted).ok_or_else(|| {
+            "incremental tokenizer output is not a prefix of final decode".to_string()
+        })?;
+        if tail.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(tail.to_string()))
+        }
     }
 }
 pub fn build_tokenizer(config: &EngineConfig) -> Result<Box<dyn TokenizerTrait>, EngineError> {
@@ -625,24 +653,31 @@ mod tests {
         assert_eq!(streamed, "hi ");
     }
 
-    /// HuggingFace 适配器缓冲 token、finish 时输出完整文本；
-    /// 拼接性质仍然成立（中间片段为空）。
+    /// HuggingFace 解码器应在完成前就发送安全的文本片段，并保持与一次性 decode
+    /// 完全一致。tokenizers 的逐步流式 decode 状态机负责 BPE/byte-fallback 边界。
     #[test]
-    fn test_huggingface_decoder_buffers_until_finish() {
+    fn test_huggingface_decoder_streams_before_finish() {
         let path = write_test_tokenizer_json();
         let tokenizer = HuggingFaceTokenizer::from_file(&path).unwrap();
         let tokens = tokenizer.encode("hello world");
 
         let mut decoder = tokenizer.create_decoder();
         let mut streamed = String::new();
+        let mut chunks_before_finish = 0;
         for &token in &tokens {
-            let chunk = decoder.push(token).unwrap();
-            assert!(chunk.is_none(), "buffered decoder must not emit mid-stream");
+            if let Some(chunk) = decoder.push(token).unwrap() {
+                chunks_before_finish += 1;
+                streamed.push_str(&chunk);
+            }
         }
         if let Some(tail) = decoder.finish().unwrap() {
             streamed.push_str(&tail);
         }
 
+        assert!(
+            chunks_before_finish > 0,
+            "streaming decoder must emit before finish"
+        );
         assert_eq!(streamed, tokenizer.decode(&tokens));
         assert_eq!(streamed, "hello world");
 
@@ -696,6 +731,20 @@ mod tests {
         assert_eq!(tokenizer.pad_token_id(), 151643);
         // add_special_tokens=false：encode 不自动添加 BOS/EOS
         assert_eq!(tokenizer.encode("hi"), vec![1]);
+
+        // 流式状态机跳过生成过程中出现的 special token，且不能破坏已发送文本的前缀。
+        let tokens = vec![1, tokenizer.eos_token_id(), 1];
+        let mut decoder = tokenizer.create_decoder();
+        let mut streamed = String::new();
+        for &token in &tokens {
+            if let Some(chunk) = decoder.push(token).unwrap() {
+                streamed.push_str(&chunk);
+            }
+        }
+        if let Some(tail) = decoder.finish().unwrap() {
+            streamed.push_str(&tail);
+        }
+        assert_eq!(streamed, tokenizer.decode(&tokens));
 
         let _ = fs::remove_file(path);
     }

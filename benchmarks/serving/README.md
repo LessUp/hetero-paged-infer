@@ -59,7 +59,8 @@ python3 benchmarks/serving/datasets/synth/gen_synth.py \
 cd benchmarks/serving
 ./run_sweep.sh --base-url http://127.0.0.1:3000 --engine paged-serving \
     --model paged-serving --model-path ../../../models/<model>.gguf \
-    --backend-quant W8A16 --tokenizer <tokenizer.json> --cuda-archs 86
+    --backend-quant W8A16 --tokenizer <tokenizer.json> --cuda-archs 86 \
+    --poisson-seed 20260904
 
 # 5. 检查产物并生成图表
 python3 validate_results.py results/<date>-<gpu>/

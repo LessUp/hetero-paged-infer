@@ -10,7 +10,7 @@
 //! - handler 通过 mpsc 通道提交请求，并等待该请求的专属事件流；
 //! - 引擎循环在每一步之间清空提交队列，使调度器能看到并发请求、
 //!   组成真正的 continuous batching 批次；
-//! - 流式响应随 token 生成逐片段推送（真实的首 token 延迟）。
+//! - 流式响应随 token 生成逐片段推送；文本片段由 tokenizer 在可安全追加时产生。
 
 use crate::config::{EngineConfig, TokenizerKind};
 use crate::engine::EngineMetrics;

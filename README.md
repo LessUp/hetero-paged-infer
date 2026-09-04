@@ -303,18 +303,30 @@ for result in results {
 回归；不能产生真实 token 吞吐或 GPU 利用率结论。`tiny-llm` feature 已接入真实 CUDA
 后端与分页 KV（策略 1），目前 3 并发 e2e 只证明跨语言生命周期与 greedy 输出正确性。
 
-真实 CUDA Serving 的 closed-loop / Poisson 报告尚未发布。在完整矩阵通过正确性门控、绑定
-硬件与双仓 commit、归档 `summary.json` 和 `per_request.jsonl` 前，本仓库不宣称容量、QPS、
-GPU 利用率或生产成熟度。评测入口与产物要求见
+首份真实 CUDA Serving 结果已归档于
+[`benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving/`](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving/)。
+它绑定硬件、双仓 commit、模型 SHA-256、逐请求记录和负结果；在 RTX 3060 Laptop 6GB
+上，closed-loop 并发 1–8 的吞吐约为 82 tok/s 且未随并发扩展，Poisson 约 1.0x 饱和
+请求容量时已出现 429。该结果只适用于所归档的模型、硬件和负载，不能外推为通用容量或
+生产成熟度结论。评测入口与产物要求见
 [`benchmarks/serving/README.md`](benchmarks/serving/README.md)。
+
+这份 P1 归档采集于 HF 流式解码修复之前，因而只能作为调度/后端饱和的历史基线，不能
+用于描述当前代码的流式 TTFT 或 TPOT；后续 P2 结果必须重新跑完整矩阵。并发吞吐平台的
+直接执行边界也已经定位：ABI 虽可一次接收多个序列，但
+[`tinyllm_step`](https://github.com/open-infra-ai/tiny-llm/blob/master/src/ffi.cpp#L335-L543)
+当前逐序列推进，并在每个序列的采样处同步 CUDA stream 并把完整 logits 拷回主机。因此
+continuous batching 在控制面语义上成立，但尚不是 fused compute batch。下一项性能工作是
+在保持双仓 ABI / greedy 对齐契约的前提下实现批量 decode 与设备侧采样，再以新的原始结果包
+证明收益。
 
 ### 流式（SSE）与分词器
 
-- 默认 `SimpleTokenizer` 是逐 token 解码，SSE 为真正的 **token 级流式**。
-- 使用 HuggingFace tokenizer 时，增量解码走 `BufferedDecoder`：为安全起见
-  直到请求结束（`finish()`）才一次性输出完整文本 chunk，因此此时 SSE 不是
-  token 级流式，而是"请求结束时的一个完整文本 chunk"。所有
-  "token-level streaming" 的表述均限定于 `SimpleTokenizer`。
+- `SimpleTokenizer` 对每个可见 token 直接产生一个 SSE 文本片段。
+- HuggingFace tokenizer 使用 tokenizers 0.21 的官方逐步流式 decode 状态机：BPE、
+  WordPiece 和 byte-fallback 只有在文本能安全追加时才产生片段；特殊 token 或不完整
+  UTF-8 可暂不产生片段。所有片段拼接严格等于一次性 decode，且无需等到请求结束。
+  因此 TTFT 定义为首个**非空文本**片段，而不是任意 token 或 HTTP 响应头。
 
 ### 内存压力与无抢占
 

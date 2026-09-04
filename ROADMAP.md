@@ -26,14 +26,28 @@
 - [x] T7：Unicode stop 序列字节偏移修复
 - [x] T8：文档与代码事实对齐
 
-## P1（部分完成）
+## P1（已完成）
 
 - [x] T9：Chat Completions 应用真实 chat template（Qwen2 `<|im_start|>`，HF tokenizer）
 - [x] T10：引擎指标 /metrics + CB on/off benchmark
 - [x] T11：tiny-llm 策略 1（分页 KV C ABI，跨仓库）——ABI v2 + 真实块表，默认策略 1；llama.cpp 逐 token 对齐 + 3 并发 e2e 通过（2026-08-18）
-- [x] T12：明确降级（选项 A）——保留 `BufferedDecoder`，文档明确 HF tokenizer
-  流式为"请求结束时的一个完整文本 chunk"，"token-level streaming" 表述限定
-  `SimpleTokenizer`（T8 已完成）
+- [x] T12：安全 HF 增量解码——升级 tokenizers 到 0.21，使用官方逐步流式 decode
+  处理 BPE/WordPiece/byte-fallback 边界；中间片段与最终一次性 decode 等价。
+- [x] 首份真实 CUDA serving 结果——closed-loop 1/2/4/8 与 Poisson 0.5x/1.0x/2.0x
+  均已归档（RTX 3060 Laptop 6GB、模型 SHA-256、双仓 clean commit、21 个 run）；
+  吞吐平台与 429 拐点作为后续 batch 执行优化的基线，而非泛化性能主张。
+
+## P2：流式可观测性与可复现实验（进行中）
+
+- [x] HuggingFace 安全增量流式——真实 CUDA HTTP canary 已确认 16 个可见文本片段和
+  15 个分片间隔样本；这不是新的正式性能矩阵，原始临时输出不替代 P1 归档。
+- [x] Poisson 到达可复现——`loadgen --seed` 写入 `summary.json`；`run_sweep.sh` 默认
+  `20260904 + repeat - 1`，同时写入逐 run 元数据。
+- [ ] 以 P2 代码重新采集正式 closed-loop / Poisson 矩阵，才可发布当前流式 TTFT、TPOT
+  与 inter-chunk 分布。
+- [ ] tiny-llm 批量执行——当前 `tinyllm_step` 逐序列执行，且每个序列采样都会同步并回传
+  logits；先完成批量 decode / 设备侧采样设计与双仓 greedy 对齐，再把吞吐提升归因于
+  continuous batching。
 
 ## 阶段 1：巩固（低成本，面试前做一次）
 
@@ -61,7 +75,7 @@
 
 ## 阶段 3：可信评测与上游贡献（当前）
 
-- [ ] closed-loop / Poisson 两种负载使用统一的请求起点、全局墙钟与 token coverage
+- [x] closed-loop / Poisson 两种负载使用统一的请求起点、全局墙钟与 token coverage
 - [ ] paged-serving / llama-server / vLLM 三后端结果绑定 commit、模型与量化口径
 - [ ] 补齐 KV 利用率采样、取消/HOL/fairness 场景，原始请求与负结果一并归档
 - [ ] 把本仓库的调度练习转化为对 vLLM / SGLang 的理解与 PR
