@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "vram": "6144 MiB",
+    "driver": "610.88"
+  },
+  "software": {
+    "cuda_toolkit": "Build cuda_12.0.r12.0/compiler.32267302_0"
+  },
+  "commits": {
+    "paged_serving": "34bf02f8cf1362eea30d85b1308ca4fa9a598f32",
+    "tiny_llm": "6df2c59b8db5ec409cf214a764e2f4eae84216d8",
+    "dirty": false,
+    "paged_serving_dirty": false,
+    "tiny_llm_dirty": false
+  },
+  "build": {
+    "profile": "release",
+    "cuda_archs": "86"
+  }
+}

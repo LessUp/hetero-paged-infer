@@ -39,8 +39,10 @@
 
 ## P2：流式可观测性与可复现实验（进行中）
 
-- [x] HuggingFace 安全增量流式——真实 CUDA HTTP canary 已确认 16 个可见文本片段和
-  15 个分片间隔样本；这不是新的正式性能矩阵，原始临时输出不替代 P1 归档。
+- [x] HuggingFace 安全增量流式——真实 CUDA HTTP
+  [canary](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-stream-canary/)
+  已归档 16 个可见文本片段和 15 个分片间隔样本；这不是新的正式性能矩阵，不能替代
+  P1 归档。
 - [x] Poisson 到达可复现——`loadgen --seed` 写入 `summary.json`；`run_sweep.sh` 默认
   `20260904 + repeat - 1`，同时写入逐 run 元数据。
 - [ ] 以 P2 代码重新采集正式 closed-loop / Poisson 矩阵，才可发布当前流式 TTFT、TPOT
