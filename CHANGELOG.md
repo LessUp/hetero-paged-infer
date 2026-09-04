@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- 服务端不再因仅启用 `tiny-llm` 编译 feature 就被误认为正在使用真实 CUDA
+  后端：新增显式 `--backend tiny-llm --model-path <model.gguf>` 运行时选择，并在
+  feature、后端与模型参数不匹配时直接报错，避免性能实验静默落到 CPU reference。
+
+### Changed
+- README 与 serving benchmark 操作手册同步真实后端启动命令；`build.rs` 不再监听
+  仅供测试使用、不会改变链接产物的 `TINY_LLM_MODEL` 环境变量。
+
 ## [0.2.1] - 2026-08-28
 
 ### Added

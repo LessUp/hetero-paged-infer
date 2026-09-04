@@ -1,11 +1,21 @@
 //! Paged-Serving - Main Entry Point
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use log::info;
+#[cfg(feature = "tiny-llm")]
+use paged_serving::{build_tokenizer, Scheduler, TinyLlmExecutor};
 use paged_serving::{
-    create_router, EngineConfig, GenerationParams, InferenceEngine, TokenizerConfig, TokenizerKind,
+    create_router_with_engine, EngineConfig, GenerationParams, InferenceEngine, TokenizerConfig,
+    TokenizerKind,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+enum BackendKind {
+    #[default]
+    Cpu,
+    TinyLlm,
+}
 
 #[derive(Parser, Debug)]
 #[command(name = "paged-serving")]
@@ -61,6 +71,14 @@ struct Args {
     #[arg(long)]
     serve: bool,
 
+    /// Execution backend. tiny-llm requires --features tiny-llm at build time
+    #[arg(long, value_enum, default_value_t = BackendKind::Cpu)]
+    backend: BackendKind,
+
+    /// GGUF model used by --backend tiny-llm
+    #[arg(long)]
+    model_path: Option<PathBuf>,
+
     /// Maximum tokens to generate
     #[arg(long, default_value = "100")]
     max_tokens: u32,
@@ -77,6 +95,41 @@ struct Args {
     /// 151665，GGUF embedding 可能为 151936 并含 padding 行），替代默认的 SimpleTokenizer
     #[arg(long)]
     tokenizer: Option<PathBuf>,
+}
+
+fn create_engine(
+    config: EngineConfig,
+    backend: BackendKind,
+    model_path: Option<&Path>,
+) -> Result<InferenceEngine, Box<dyn std::error::Error>> {
+    match (backend, model_path) {
+        (BackendKind::Cpu, None) => Ok(InferenceEngine::new(config)?),
+        (BackendKind::Cpu, Some(_)) => Err("--model-path requires --backend tiny-llm".into()),
+        (BackendKind::TinyLlm, None) => Err("--backend tiny-llm requires --model-path".into()),
+        (BackendKind::TinyLlm, Some(model_path)) => {
+            #[cfg(feature = "tiny-llm")]
+            {
+                let model_path = model_path
+                    .to_str()
+                    .ok_or("--model-path must be valid UTF-8")?;
+                let tokenizer = build_tokenizer(&config)?;
+                let scheduler = Scheduler::new(config.clone());
+                let executor = TinyLlmExecutor::new(model_path, config.clone())?;
+                Ok(InferenceEngine::with_components(
+                    config,
+                    tokenizer,
+                    scheduler,
+                    Box::new(executor),
+                )?)
+            }
+
+            #[cfg(not(feature = "tiny-llm"))]
+            {
+                let _ = model_path;
+                Err("--backend tiny-llm requires a binary built with --features tiny-llm".into())
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -160,14 +213,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Max sequences: {}", config.max_num_seqs);
     println!();
 
+    let engine = create_engine(config.clone(), args.backend, args.model_path.as_deref())?;
+
     if args.serve {
         let bind_addr = format!("{}:{}", config.serving.host, config.serving.port);
         info!("Starting OpenAI-compatible server on {}", bind_addr);
         println!("Server mode: {}", bind_addr);
         println!("Model name: {}", config.serving.model_name);
+        println!("Backend: {:?}", args.backend);
 
         let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
-        let app = create_router(config)?;
+        let app = create_router_with_engine(config, engine)?;
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal())
             .await?;
@@ -175,8 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    // Create inference engine
-    let mut engine = InferenceEngine::new(config)?;
+    let mut engine = engine;
 
     // Process input if provided
     if let Some(input_text) = args.input {
@@ -247,4 +302,32 @@ async fn shutdown_signal() {
         _ = terminate => {},
     }
     info!("Shutdown signal received, draining in-flight requests");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backend_arguments_fail_on_mismatched_model_path() {
+        let config = EngineConfig::default();
+        let cpu_error = create_engine(
+            config.clone(),
+            BackendKind::Cpu,
+            Some(Path::new("model.gguf")),
+        )
+        .err()
+        .expect("CPU backend with a model path must fail");
+        assert_eq!(
+            cpu_error.to_string(),
+            "--model-path requires --backend tiny-llm"
+        );
+        let tiny_error = create_engine(config, BackendKind::TinyLlm, None)
+            .err()
+            .expect("tiny-llm backend without a model path must fail");
+        assert_eq!(
+            tiny_error.to_string(),
+            "--backend tiny-llm requires --model-path"
+        );
+    }
 }

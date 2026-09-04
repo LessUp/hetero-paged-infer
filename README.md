@@ -185,6 +185,12 @@ cargo test
 
 # 启动 OpenAI 兼容 HTTP 服务
 ./target/release/paged-serving --serve
+
+# 启动 tiny-llm 真实 CUDA 后端；显式选择避免压测时误用 CPU reference
+TINY_LLM_DIR=../tiny-llm/build cargo build --locked --release --features tiny-llm
+./target/release/paged-serving --serve --backend tiny-llm \
+  --model-path ../models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  --tokenizer ../models/tokenizer.json
 ```
 
 ### OpenAI 兼容服务
@@ -258,6 +264,8 @@ for result in results {
 | `--max-num-seqs` | 256 | 最大序列数 |
 | `--max-model-len` | 2048 | 最大模型上下文长度 |
 | `--max-total-tokens` | 4096 | 每批次最大 token 总数 |
+| `--backend` | `cpu` | 执行后端：`cpu` 或编译 feature 后可用的 `tiny-llm` |
+| `--model-path` | 无 | `tiny-llm` 后端使用的 GGUF；选择该后端时必填 |
 | `--memory-threshold` | 0.9 | 内存压力阈值 (0.0-1.0) |
 | `--max-tokens` | 100 | 最大生成 token 数 |
 | `--temperature` | 0.0 | 采样温度；CPU 后端仅支持 0.0（greedy），其他值提交时返回错误 |

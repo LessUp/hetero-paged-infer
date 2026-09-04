@@ -29,9 +29,9 @@ benchmarks/serving/
 
 ```bash
 # 0. 构建（仓库根目录）
-cargo build --release --bin loadgen
-# 真实后端服务（可选；CPU 参考后端可直接 --serve）
-cargo build --release --features tiny-llm   # 需 TINY_LLM_DIR
+cargo build --locked --release --bin loadgen
+# 真实后端服务（CPU 参考后端可直接 --serve）
+TINY_LLM_DIR=../tiny-llm/build cargo build --locked --release --features tiny-llm
 
 # 1. 生成数据集
 python3 benchmarks/serving/datasets/synth/gen_synth.py \
@@ -40,7 +40,8 @@ python3 benchmarks/serving/datasets/synth/gen_synth.py \
 # 2. 启动被测服务（三选一）
 # paged-serving（tiny-llm 真实后端）：
 #   PAGED_SERVING_TINY_LLM_MAX_SEQS=8 ./target/release/paged-serving --serve \
-#       --port 3000 --tokenizer <tokenizer.json> ...（模型经配置加载）
+#       --backend tiny-llm --model-path <model.gguf> \
+#       --port 3000 --tokenizer <tokenizer.json>
 # llama-server（基线）：
 #   llama-server -m <model.gguf> -c 2048 --parallel 8 --cont-batching --port 8080
 # vLLM（若显存允许）：

@@ -12,7 +12,6 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-env-changed=TINY_LLM_DIR");
-    println!("cargo:rerun-if-env-changed=TINY_LLM_MODEL");
 
     let Ok(dir) = env::var("TINY_LLM_DIR") else {
         println!(
