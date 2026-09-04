@@ -1,0 +1,13 @@
+数据集: 200 条 | 模式: poisson | 并发/速率: 0.32 req/s | 测量请求数: 64 | warmup: 30s
+warmup 完成（30s），开始测量窗口
+逐请求记录已写入: results/2026-09-04-RTX3060Laptop-paged-serving/paged-serving_poisson_rate0.32_work_r1/per_request.jsonl（64 条）
+权威汇总已写入: results/2026-09-04-RTX3060Laptop-paged-serving/paged-serving_poisson_rate0.32_work_r1/summary.json
+=== loadgen 汇总 ===
+引擎: paged-serving | 模式: poisson | 目标: http://127.0.0.1:3001
+请求: 64（成功 64，成功率 100.00%）| 测量窗口: 210.766s
+TTFT ms p50/p95/p99: 2479.25 / 6349.94 / 7514.79（n=64）
+chunk 间隔 ms p50/p95/p99: - / - / -（n=0）（不是 ITL）
+ITL ms: -（协议未提供 token 级时间戳）
+TPOT ms p50/p95/p99: 0.00 / 0.00 / 0.00（n=64）
+token 计数覆盖: 64/64（100.00%）
+吞吐: 38.9 tok/s | 0.30 req/s

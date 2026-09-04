@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "engine": {
+    "name": "paged-serving",
+    "commit": "11b22977518f2fea31f99fa0c47933a354e7bddc",
+    "dirty": false
+  },
+  "model": {
+    "api_name": "paged-serving",
+    "path": "../../../models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "sha256": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+    "backend_quant": "Q4_K_M",
+    "tokenizer": "../../../models/tokenizer.json"
+  },
+  "load": {
+    "mode": "poisson",
+    "concurrency": null,
+    "rate": 1.28,
+    "dataset": "work",
+    "repeat": 2,
+    "requests": 64,
+    "warmup_secs": 30,
+    "max_tokens": 128
+  }
+}
