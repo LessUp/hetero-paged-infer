@@ -48,12 +48,13 @@
   [矩阵](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/)：
   21 个 run 已归档当前流式 TTFT、TPOT、inter-chunk 与固定 seed；closed c1/c2/c4 和
   全部 Poisson 的 TTFT p95 未通过 10% 收敛门槛，结论仅作边界证据。
-- [x] tiny-llm 正常 greedy 的 device-side sampling——`logprobs_k == 0` 时 GPU argmax，
-  `tinyllm_step` 末尾一次回传整批 token；真实模型 device/host 路径与本仓 feature e2e
-  已复验。它只移除了每序列采样同步与整词表 D2H，不是性能报告。
-- [ ] tiny-llm 融合 batch compute——当前 `tinyllm_step` 的层前向仍逐序列执行；先完成
-  ragged batch workspace、批量 final norm / LM head 与双仓 greedy 对齐，才可把吞吐提升
-  归因于 continuous batching。
+- [x] tiny-llm 正常 greedy 的批量末端后处理——`logprobs_k == 0` 时每序列 layer forward
+  后把末层 hidden 写入 GPU batch buffer；`tinyllm_step` 末尾批量执行 final RMSNorm、LM
+  head 与 argmax，并一次回传整批 token。真实模型 device/host 对照、策略 1/2 差分与本仓
+  三并发 feature e2e 已复验；这仍不是性能报告。
+- [ ] tiny-llm 融合 batch compute——当前 `tinyllm_step` 的 Transformer layer forward 仍
+  逐序列执行；下一步是 ragged batch workspace、逐 token oracle 与逐层 batch compute，
+  然后在干净提交上重采 serving 矩阵，才可讨论 continuous batching 的吞吐归因。
 
 ## 阶段 1：巩固（低成本，面试前做一次）
 

@@ -41,7 +41,7 @@ Paged-Serving 是一个基于 Rust 构建的 LLM Serving 控制面，以模块�
 | **模块化架构** | 基于 Trait 的抽象设计 | ✅ |
 | **OpenAI 兼容服务器** | `/v1/completions` + `/v1/chat/completions` + SSE | ✅ |
 | **自动化验证** | unit、integration、server integration 与 property tests | ✅ |
-| **tiny-llm 真实后端** | `tiny-llm` feature 下接入 CUDA 后端，分页 KV（策略 1）默认启用，`PAGED_SERVING_TINY_LLM_STRATEGY=2` 可回退连续 KV；正常 greedy 在 device 侧选 token、每步一次回传整批结果，但层计算仍逐序列；`PAGED_SERVING_TINY_LLM_MAX_SEQS`（默认 4）与 `PAGED_SERVING_TINY_LLM_DECODE_RESERVE`（默认 512）可按显存/生成长度调节容量 | ✅ |
+| **tiny-llm 真实后端** | `tiny-llm` feature 下接入 CUDA 后端，分页 KV（策略 1）默认启用，`PAGED_SERVING_TINY_LLM_STRATEGY=2` 可回退连续 KV；正常 greedy 把各序列末层 hidden 写入 GPU batch buffer，再批量执行 final RMSNorm、LM head 与 argmax，并一次回传整批结果；Transformer layer 仍逐序列；`PAGED_SERVING_TINY_LLM_MAX_SEQS`（默认 4）与 `PAGED_SERVING_TINY_LLM_DECODE_RESERVE`（默认 512）可按显存/生成长度调节容量 | ✅ |
 
 在五仓学习路径中，本仓库只练习 LLM Serving 控制面；真实模型权重加载与 token 计算属于 `tiny-llm`。整体顺序见 [`LEARNING_PATH.md`](https://github.com/open-infra-ai/open-infra-ai/blob/master/LEARNING_PATH.md)（meta 仓）。
 
@@ -316,13 +316,14 @@ for result in results {
 [`2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/`](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/)；
 它首次记录真实首文本 TTFT、TPOT 与 inter-chunk 分布，并将 Poisson 种子写入双层元数据。
 其中 closed c1/c2/c4 与全部 Poisson 档的 TTFT p95 重复波动超过 10%，所以它是当前
-路径的可追溯边界证据，不是精确 SLO 或 P1→P2 速度提升声明。并发吞吐平台的直接执行边界
-也已经定位：ABI 虽可一次接收多个序列，但
-[`tinyllm_step`](https://github.com/open-infra-ai/tiny-llm/blob/master/src/ffi.cpp#L335-L543)
-当前逐序列推进，并在每个序列的采样处同步 CUDA stream 并把完整 logits 拷回主机。因此
-continuous batching 在控制面语义上成立，但尚不是 fused compute batch。下一项性能工作是
-在保持双仓 ABI / greedy 对齐契约的前提下实现批量 decode 与设备侧采样，再以新的原始结果包
-证明收益。
+路径的可追溯边界证据，不是精确 SLO 或 P1→P2 速度提升声明。该矩阵也早于当前的批量
+末端后处理：ABI 虽可一次接收多个序列，但
+[`tinyllm_step`](https://github.com/open-infra-ai/tiny-llm/blob/master/src/ffi.cpp)
+的 Transformer layer forward 仍逐序列推进。正常 greedy 仅在每序列末层 hidden 写入
+GPU batch buffer 后，批量执行 final RMSNorm、LM head 与 argmax，并在 step 末尾一次回传
+token id；`logprobs` 仍走主机完整 logits / top-k 路径。因此 continuous batching 在控制面
+语义上成立，但尚不是 fused compute batch。该正确性改动尚未重采 serving 矩阵，不能据此
+声明吞吐或 TTFT 改善；下一项性能工作是逐层 batch decode，并以新的原始结果包验证。
 
 ### 流式（SSE）与分词器
 
