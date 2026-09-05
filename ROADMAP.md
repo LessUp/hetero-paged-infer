@@ -48,9 +48,12 @@
   [矩阵](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/)：
   21 个 run 已归档当前流式 TTFT、TPOT、inter-chunk 与固定 seed；closed c1/c2/c4 和
   全部 Poisson 的 TTFT p95 未通过 10% 收敛门槛，结论仅作边界证据。
-- [ ] tiny-llm 批量执行——当前 `tinyllm_step` 逐序列执行，且每个序列采样都会同步并回传
-  logits；先完成批量 decode / 设备侧采样设计与双仓 greedy 对齐，再把吞吐提升归因于
-  continuous batching。
+- [x] tiny-llm 正常 greedy 的 device-side sampling——`logprobs_k == 0` 时 GPU argmax，
+  `tinyllm_step` 末尾一次回传整批 token；真实模型 device/host 路径与本仓 feature e2e
+  已复验。它只移除了每序列采样同步与整词表 D2H，不是性能报告。
+- [ ] tiny-llm 融合 batch compute——当前 `tinyllm_step` 的层前向仍逐序列执行；先完成
+  ragged batch workspace、批量 final norm / LM head 与双仓 greedy 对齐，才可把吞吐提升
+  归因于 continuous batching。
 
 ## 阶段 1：巩固（低成本，面试前做一次）
 

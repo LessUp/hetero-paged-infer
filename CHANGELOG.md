@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   双仓 commit），如实记录吞吐平台、429 和 Poisson 未收敛，而不做跨硬件外推。
 - 归档 P2 当前流式语义的 21-run CUDA 矩阵：首文本 TTFT、TPOT、inter-chunk 与
   固定 Poisson seed 均可追溯；未收敛重复与 429 保留在报告中，不将均值表述为 SLO。
+- tiny-llm 的正常 greedy C ABI 路径现在在 device 侧 argmax，并在每个 step 末尾一次
+  回传整批 token；控制面 API 与 ABI 布局不变。层前向仍逐序列执行，且本项尚未重新采集
+  serving 矩阵，故不作为吞吐提升声明。
 
 ## [0.2.1] - 2026-08-28
 
