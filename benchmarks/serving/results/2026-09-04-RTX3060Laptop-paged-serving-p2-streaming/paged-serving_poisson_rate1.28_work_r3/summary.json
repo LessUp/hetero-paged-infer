@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "config": {
+    "engine": "paged-serving",
+    "mode": "poisson",
+    "base_url": "http://127.0.0.1:3004",
+    "model": "paged-serving",
+    "dataset": "datasets/synth/work.jsonl",
+    "requests": 64,
+    "concurrency": null,
+    "rate": 1.28,
+    "arrival_seed": 20260906,
+    "max_tokens": 128,
+    "warmup_secs": 30,
+    "timeout_secs": 120,
+    "tokenizer": "../../../models/tokenizer.json"
+  },
+  "measurement_wall_secs": 53.969960639,
+  "requests": {
+    "total": 64,
+    "success": 34,
+    "failed": 30,
+    "success_rate_pct": 53.125
+  },
+  "ttft_ms": {
+    "samples": 34,
+    "p50": 410.142172,
+    "p95": 804.359282,
+    "p99": 1111.521919
+  },
+  "inter_chunk_latency_ms": {
+    "samples": 4318,
+    "p50": 69.17772799999999,
+    "p95": 99.266011,
+    "p99": 395.79693100000003
+  },
+  "itl_ms": null,
+  "tpot_ms": {
+    "samples": 34,
+    "p50": 81.58124489763779,
+    "p95": 88.24877076377952,
+    "p99": 93.07808062204724
+  },
+  "completion_tokens": {
+    "known_requests": 34,
+    "successful_requests": 34,
+    "coverage_pct": 100.0,
+    "total": 4352,
+    "source_counts": {
+      "usage": 34
+    }
+  },
+  "throughput": {
+    "output_tokens_per_second": 80.63744995313448,
+    "successful_requests_per_second": 0.6299800777588631
+  },
+  "errors": {
+    "http_429": 30
+  }
+}

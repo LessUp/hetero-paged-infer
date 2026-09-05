@@ -312,8 +312,12 @@ for result in results {
 [`benchmarks/serving/README.md`](benchmarks/serving/README.md)。
 
 这份 P1 归档采集于 HF 流式解码修复之前，因而只能作为调度/后端饱和的历史基线，不能
-用于描述当前代码的流式 TTFT 或 TPOT；后续 P2 结果必须重新跑完整矩阵。并发吞吐平台的
-直接执行边界也已经定位：ABI 虽可一次接收多个序列，但
+用于描述当前代码的流式 TTFT 或 TPOT。当前流式语义的 21-run P2 矩阵已归档于
+[`2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/`](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/)；
+它首次记录真实首文本 TTFT、TPOT 与 inter-chunk 分布，并将 Poisson 种子写入双层元数据。
+其中 closed c1/c2/c4 与全部 Poisson 档的 TTFT p95 重复波动超过 10%，所以它是当前
+路径的可追溯边界证据，不是精确 SLO 或 P1→P2 速度提升声明。并发吞吐平台的直接执行边界
+也已经定位：ABI 虽可一次接收多个序列，但
 [`tinyllm_step`](https://github.com/open-infra-ai/tiny-llm/blob/master/src/ffi.cpp#L335-L543)
 当前逐序列推进，并在每个序列的采样处同步 CUDA stream 并把完整 logits 拷回主机。因此
 continuous batching 在控制面语义上成立，但尚不是 fused compute batch。下一项性能工作是

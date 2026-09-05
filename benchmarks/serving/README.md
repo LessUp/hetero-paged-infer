@@ -77,8 +77,9 @@ python3 validate_results.py --formal results/<date>-<gpu>/
 |------|------|------|------|
 | 2026-09-04 | RTX 3060 Laptop 6GB | paged-serving + tiny-llm 真实 CUDA：21 个 run 的 P1 基线；含吞吐平台、429 与流式限制 | [正式结果](results/2026-09-04-RTX3060Laptop-paged-serving/) |
 | 2026-09-04 | RTX 3060 Laptop 6GB | P2 HuggingFace 流式与 Poisson 种子功能 canary；`n=1`，不含性能结论 | [功能证据](results/2026-09-04-RTX3060Laptop-paged-serving-p2-stream-canary/) |
+| 2026-09-04 | RTX 3060 Laptop 6GB | P2 当前流式语义：21 个 run，真实 TTFT / TPOT / inter-chunk；重复收敛限制已写入报告 | [正式结果](results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/) |
 
-P1 正式报告目前只覆盖 paged-serving；下一份**跨引擎**正式报告必须同时覆盖：
+已有 P1/P2 正式报告都只覆盖 paged-serving；下一份**跨引擎**正式报告必须同时覆盖：
 
 - 正确性 canary 后的真实 CUDA 后端；
 - closed-loop 并发 1/2/4/8 与 Poisson 到达率矩阵；

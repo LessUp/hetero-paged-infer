@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   仅供测试使用、不会改变链接产物的 `TINY_LLM_MODEL` 环境变量。
 - 归档首份真实 CUDA serving 结果（21 个 run、原始请求、模型 SHA-256、硬件与
   双仓 commit），如实记录吞吐平台、429 和 Poisson 未收敛，而不做跨硬件外推。
+- 归档 P2 当前流式语义的 21-run CUDA 矩阵：首文本 TTFT、TPOT、inter-chunk 与
+  固定 Poisson seed 均可追溯；未收敛重复与 429 保留在报告中，不将均值表述为 SLO。
 
 ## [0.2.1] - 2026-08-28
 

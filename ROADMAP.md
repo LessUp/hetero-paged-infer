@@ -41,12 +41,13 @@
 
 - [x] HuggingFace 安全增量流式——真实 CUDA HTTP
   [canary](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-stream-canary/)
-  已归档 16 个可见文本片段和 15 个分片间隔样本；这不是新的正式性能矩阵，不能替代
-  P1 归档。
+  已归档 16 个可见文本片段和 15 个分片间隔样本；它是功能验证，不替代完整矩阵。
 - [x] Poisson 到达可复现——`loadgen --seed` 写入 `summary.json`；`run_sweep.sh` 默认
   `20260904 + repeat - 1`，同时写入逐 run 元数据。
-- [ ] 以 P2 代码重新采集正式 closed-loop / Poisson 矩阵，才可发布当前流式 TTFT、TPOT
-  与 inter-chunk 分布。
+- [x] 以 P2 代码重新采集正式 closed-loop / Poisson
+  [矩阵](benchmarks/serving/results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/)：
+  21 个 run 已归档当前流式 TTFT、TPOT、inter-chunk 与固定 seed；closed c1/c2/c4 和
+  全部 Poisson 的 TTFT p95 未通过 10% 收敛门槛，结论仅作边界证据。
 - [ ] tiny-llm 批量执行——当前 `tinyllm_step` 逐序列执行，且每个序列采样都会同步并回传
   logits；先完成批量 decode / 设备侧采样设计与双仓 greedy 对齐，再把吞吐提升归因于
   continuous batching。
