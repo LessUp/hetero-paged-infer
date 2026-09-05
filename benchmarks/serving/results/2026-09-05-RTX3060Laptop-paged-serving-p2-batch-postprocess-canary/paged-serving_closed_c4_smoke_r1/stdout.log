@@ -1,0 +1,12 @@
+数据集: 3 条 | 模式: closed | 并发/速率: 4 | 测量请求数: 4 | warmup: 0s
+逐请求记录已写入: results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/paged-serving_closed_c4_smoke_r1/per_request.jsonl（4 条）
+权威汇总已写入: results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/paged-serving_closed_c4_smoke_r1/summary.json
+=== loadgen 汇总 ===
+引擎: paged-serving | 模式: closed | 目标: http://127.0.0.1:3010
+请求: 4（成功 4，成功率 100.00%）| 测量窗口: 1.176s
+TTFT ms p50/p95/p99: 739.12 / 741.26 / 741.26（n=4）
+chunk 间隔 ms p50/p95/p99: 24.72 / 46.37 / 46.38（n=60）（不是 ITL）
+ITL ms: -（协议未提供 token 级时间戳）
+TPOT ms p50/p95/p99: 29.09 / 29.09 / 29.09（n=4）
+token 计数覆盖: 4/4（100.00%）
+吞吐: 54.4 tok/s | 3.40 req/s

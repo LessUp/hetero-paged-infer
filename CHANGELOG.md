@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPU batch buffer，并在 step 末尾批量执行 final RMSNorm、LM head 与 argmax 后一次回传
   整批 token；控制面 API 与 ABI 布局不变。Transformer layer forward 仍逐序列执行，且
   本项尚未重新采集 serving 矩阵，故不作为吞吐提升声明。
+- 归档上述干净提交的真实 CUDA HTTP 功能 canary：closed c=4、4 个 smoke 请求均成功，
+  结果包绑定双仓 commit、模型 SHA-256 与原始请求；`n=1`、无预热，不作为性能结果。
 
 ## [0.2.1] - 2026-08-28
 

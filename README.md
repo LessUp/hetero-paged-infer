@@ -324,6 +324,8 @@ GPU batch buffer 后，批量执行 final RMSNorm、LM head 与 argmax，并在 
 token id；`logprobs` 仍走主机完整 logits / top-k 路径。因此 continuous batching 在控制面
 语义上成立，但尚不是 fused compute batch。该正确性改动尚未重采 serving 矩阵，不能据此
 声明吞吐或 TTFT 改善；下一项性能工作是逐层 batch decode，并以新的原始结果包验证。
+当前干净提交还有一份 [closed c=4 HTTP 功能 canary](benchmarks/serving/results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/)，
+其 4 个 smoke 请求均成功；它是可运行性证据，不替代重复性能矩阵。
 
 ### 流式（SSE）与分词器
 
