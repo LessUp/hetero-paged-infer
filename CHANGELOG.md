@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   本项尚未重新采集 serving 矩阵，故不作为吞吐提升声明。
 - 归档上述干净提交的真实 CUDA HTTP 功能 canary：closed c=4、4 个 smoke 请求均成功，
   结果包绑定双仓 commit、模型 SHA-256 与原始请求；`n=1`、无预热，不作为性能结果。
+- 归档批量末端后处理后的真实 CUDA HTTP 正式矩阵：21 个 run 绑定 RTX 3060 Laptop、
+  模型 SHA-256、双仓 clean commit、逐请求记录、固定 Poisson seed、CSV 与图表；closed-loop
+  全部成功，Poisson 0.64 / 1.28 req/s 的 429 与未收敛重复如实保留，不作跨版本速度归因。
 
 ## [0.2.1] - 2026-08-28
 

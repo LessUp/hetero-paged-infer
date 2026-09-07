@@ -54,6 +54,10 @@
   三并发 feature e2e 已复验；这仍不是性能报告。
 - [x] 上述干净提交的真实 CUDA HTTP [功能 canary](benchmarks/serving/results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/)——closed c=4 的 4 个 smoke
   请求成功，原始请求、模型 SHA-256 与双仓 commit 已归档；`n=1`、无预热，不能用作性能结论。
+- [x] 批量末端后处理后的真实 CUDA HTTP [正式矩阵](benchmarks/serving/results/2026-09-07-RTX3060Laptop-paged-serving-p2-batch-postprocess-streaming/)——21 个 run 绑定双仓 clean commit、
+  模型 SHA-256、固定 Poisson seed 与逐请求记录；closed-loop 全部成功，Poisson 0.64 / 1.28
+  req/s 分别有 9 / 74 个 429。c1/c4 通过 TTFT p95 与吞吐的 10% 重复波动检查，c2/c8 与
+  Poisson 的未收敛结果保留在报告中；没有跨版本速度归因。
 - [ ] tiny-llm 融合 batch compute——当前 `tinyllm_step` 的 Transformer layer forward 仍
   逐序列执行；下一步是 ragged batch workspace、逐 token oracle 与逐层 batch compute，
   然后在干净提交上重采 serving 矩阵，才可讨论 continuous batching 的吞吐归因。

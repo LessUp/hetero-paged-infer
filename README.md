@@ -327,6 +327,15 @@ token id；`logprobs` 仍走主机完整 logits / top-k 路径。因此 continuo
 当前干净提交还有一份 [closed c=4 HTTP 功能 canary](benchmarks/serving/results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/)，
 其 4 个 smoke 请求均成功；它是可运行性证据，不替代重复性能矩阵。
 
+批量末端后处理后的当前干净提交已重新采集
+[21-run 正式矩阵](benchmarks/serving/results/2026-09-07-RTX3060Laptop-paged-serving-p2-batch-postprocess-streaming/)。
+它绑定 RTX 3060 Laptop 6GB、模型 SHA-256、双仓 commit、21 份逐请求记录、固定 Poisson
+种子、CSV 与图表：closed-loop 的 12 个 run 均为 64/64 成功，Poisson 0.64 / 1.28 req/s
+分别累计出现 9 / 74 个 HTTP 429。closed c1/c4 的 TTFT p95 和吞吐通过 10% 重复波动检查，
+而 c2/c8 与三档 Poisson 仍存在未收敛指标；因此该包是当前路径的可追溯边界，不是稳定 SLO、
+通用容量或批量末端后处理的 before/after 速度提升。Transformer layer forward 仍逐序列，
+故也不能将它表述为 fused compute batch。
+
 ### 流式（SSE）与分词器
 
 - `SimpleTokenizer` 对每个可见 token 直接产生一个 SSE 文本片段。

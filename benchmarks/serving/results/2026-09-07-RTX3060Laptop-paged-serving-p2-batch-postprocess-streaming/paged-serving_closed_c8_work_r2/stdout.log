@@ -1,0 +1,13 @@
+数据集: 200 条 | 模式: closed | 并发/速率: 8 | 测量请求数: 64 | warmup: 30s
+warmup 完成（30s），开始测量窗口
+逐请求记录已写入: results/2026-09-07-RTX3060Laptop-paged-serving-p2-batch-postprocess-streaming/paged-serving_closed_c8_work_r2/per_request.jsonl（64 条）
+权威汇总已写入: results/2026-09-07-RTX3060Laptop-paged-serving-p2-batch-postprocess-streaming/paged-serving_closed_c8_work_r2/summary.json
+=== loadgen 汇总 ===
+引擎: paged-serving | 模式: closed | 目标: http://127.0.0.1:3005
+请求: 64（成功 64，成功率 100.00%）| 测量窗口: 83.691s
+TTFT ms p50/p95/p99: 2255.81 / 2526.64 / 2527.08（n=64）
+chunk 间隔 ms p50/p95/p99: 59.69 / 90.28 / 120.22（n=8128）（不是 ITL）
+ITL ms: -（协议未提供 token 级时间戳）
+TPOT ms p50/p95/p99: 64.44 / 66.99 / 66.99（n=64）
+token 计数覆盖: 64/64（100.00%）
+吞吐: 97.9 tok/s | 0.76 req/s

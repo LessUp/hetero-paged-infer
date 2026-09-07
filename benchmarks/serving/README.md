@@ -79,6 +79,7 @@ python3 validate_results.py --formal results/<date>-<gpu>/
 | 2026-09-04 | RTX 3060 Laptop 6GB | P2 HuggingFace 流式与 Poisson 种子功能 canary；`n=1`，不含性能结论 | [功能证据](results/2026-09-04-RTX3060Laptop-paged-serving-p2-stream-canary/) |
 | 2026-09-04 | RTX 3060 Laptop 6GB | P2 当前流式语义：21 个 run，真实 TTFT / TPOT / inter-chunk；重复收敛限制已写入报告 | [正式结果](results/2026-09-04-RTX3060Laptop-paged-serving-p2-streaming/) |
 | 2026-09-05 | RTX 3060 Laptop 6GB | P2 批量末端后处理后的真实 CUDA HTTP canary：closed c=4，4/4 成功；`n=1`、无预热，不含性能结论 | [功能证据](results/2026-09-05-RTX3060Laptop-paged-serving-p2-batch-postprocess-canary/) |
+| 2026-09-07 | RTX 3060 Laptop 6GB | P2 批量末端后处理后的真实 CUDA HTTP：21 个 run；closed 均全成功，Poisson 0.64/1.28 出现 429，重复收敛限制已写入报告 | [正式结果](results/2026-09-07-RTX3060Laptop-paged-serving-p2-batch-postprocess-streaming/) |
 
 已有 P1/P2 正式报告都只覆盖 paged-serving；下一份**跨引擎**正式报告必须同时覆盖：
 
